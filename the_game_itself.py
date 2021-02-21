@@ -7,10 +7,9 @@ pygame.mouse.set_visible(False)
 COLORS = {'intro_part_1': pygame.Color((74, 212, 237)),
           'intro_part_2': pygame.Color((251, 232, 32)),
           'main_screen_button': pygame.Color((251, 232, 32)),
-          'main_screen_button_back': pygame.Color((251, 232, 32, 50))
-          }
+          'main_screen_button_back': pygame.Color((251, 232, 32, 50))}
 
-game, score = False, 0
+game, score, rival_spaceships_movement = False, 0, True
 FPS = 60
 SCREEN = pygame.display.set_mode((0, 0), pygame.FULLSCREEN)
 WIDTH, HEIGHT = pygame.display.Info().current_w, pygame.display.Info().current_h
@@ -18,8 +17,13 @@ CLOCK = pygame.time.Clock()
 RIVAL_SPACESHIPS = pygame.sprite.Group()
 CURSOR_SPRITE = pygame.sprite.Group()
 PLAYER_SPACESHIP = pygame.sprite.Group()
+devided_width = WIDTH / 1920
 
-resolution_fit_numbers = {'start_animation_font': int(70 * WIDTH / 1920)}
+resolution_fit_numbers = {'start_animation_font': int(70 * devided_width),
+                          'start_animation_text': int(40 * devided_width),
+                          'main_screen_x': int(150 * devided_width),
+                          'main_screen_font': int(55 * devided_width)}
+
 
 def load_level(level):
     with open('data/levels/level_map_{}.txt'.format(str(level)), mode='r', encoding='utf-8') as map_file:
@@ -29,7 +33,7 @@ def load_level(level):
                 if ships[ship_row][ship] == '#':
                     continue
                 else:
-                    RivalSpaceship(RIVAL_SPACESHIPS, int(ships[ship_row][ship]), (ship * 80 + 530, ship_row * 80 + 150))
+                    RivalSpaceship(RIVAL_SPACESHIPS, int(ships[ship_row][ship]), (ship * 90 + 530, ship_row * 90 + 150))
 
 
 def pause(background, scoreboard):
@@ -67,8 +71,11 @@ def pause(background, scoreboard):
 
 
 def new_game():
-    global game, score
-    mod_80_nums = [i % 80 for i in range(50, 110)]
+    global game, score, rival_spaceships_movement
+    attack = pygame.USEREVENT + 3
+    smb_attacks = False
+    pygame.time.set_timer(attack, random.randrange(8000, 12000), 1)
+    mod_90_nums = [i % 90 for i in range(80, 140)]
     game, moved, direction, level, score = True, 0, random.choice((1, -1)), 1, 0
     BULLET.rect.y = 2000
     able_to_shoot, bullet_flies, evasion = True, False, False
@@ -96,12 +103,30 @@ def new_game():
                 print('Victory')
                 win_animation()
                 break
+        spaceships = sorted(RIVAL_SPACESHIPS, key=lambda x: x.rect.x)
+        left, right = spaceships[0].rect.x, spaceships[-1].rect.x
+        left_border, right_border = left - moved, 1920 - (right + 60 - moved)
+        if smb_attacks:
+            if not attacking_spaceship.attacking:
+                smb_attacks, rival_spaceships_movement = False, False
+                attacking_spaceship.destination = attacking_spaceship.destination + moved - attacking_spaceship.moved
+                pygame.time.set_timer(attack, random.randrange(10000, 14000), 1)
         for event in pygame.event.get():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     pause(background, scoreboard)
+            if event.type == attack:
+                attacking_candidates = list(filter(lambda x: abs(x.rect.x - player_spaceship.rect.x) < 70,
+                                                   RIVAL_SPACESHIPS))
+                if len(attacking_candidates) != 0:
+                    attacking_spaceship = sorted(attacking_candidates, key=lambda x: x.rect.y)[0]
+                    attacking_spaceship.attack()
+                    attacking_spaceship.moved = moved
+                    smb_attacks = True
+                else:
+                    pygame.time.set_timer(attack, (random.randrange(10000, 14000, 1)))
         moved += direction
-        if moved == -450 or moved == 450:
+        if moved == -left_border or moved == right_border:
             direction *= -1
             moved += 2 * direction
         keys = pygame.key.get_pressed()
@@ -118,17 +143,25 @@ def new_game():
                 evasion = True if random.randrange(100) < 25 else False
 
         spacehips_before_update = len(RIVAL_SPACESHIPS)
-        if bullet_flies and BULLET.rect.x in range(520 + moved, 1340 + moved) and evasion:
-            mod_80_num = moved - direction
-            if (BULLET.rect.x - mod_80_num) % 80 not in mod_80_nums and \
-                    (BULLET.rect.x - mod_80_num + 6) % 80 not in mod_80_nums:
+        if (bullet_flies and BULLET.rect.x in range(520 + moved, 1340 + moved)) or not rival_spaceships_movement :
+            mod_90_num = moved - direction
+            if ((BULLET.rect.x - mod_90_num) % 90 not in mod_90_nums and
+                    (BULLET.rect.x - mod_90_num + 6) % 90 not in mod_90_nums and evasion) or\
+                    not rival_spaceships_movement:
                 moved -= direction
-                RIVAL_SPACESHIPS.update(0, True)
+                RIVAL_SPACESHIPS.update(0, True, player_spaceship)
             else:
-                RIVAL_SPACESHIPS.update(direction, True)
+                RIVAL_SPACESHIPS.update(direction, True, player_spaceship)
         else:
-            RIVAL_SPACESHIPS.update(direction, True)
-        if spacehips_before_update != len(RIVAL_SPACESHIPS) or BULLET.rect.y < 0:
+            RIVAL_SPACESHIPS.update(direction, True, player_spaceship)
+        if spacehips_before_update != len(RIVAL_SPACESHIPS):
+            bullet_flies, able_to_shoot = False, True
+            BULLET.rect.y = 2000
+            if smb_attacks:
+                if attacking_spaceship not in RIVAL_SPACESHIPS:
+                    smb_attacks, rival_spaceships_movement = False, True
+                    pygame.time.set_timer(attack, random.randrange(10000, 14000), 1)
+        elif BULLET.rect.y < 0:
             bullet_flies, able_to_shoot = False, True
             BULLET.rect.y = 2000
         elif bullet_flies:
@@ -170,6 +203,7 @@ class RivalSpaceship(pygame.sprite.Sprite):
     def __init__(self, group, tier, current_pos):
         super().__init__(group)
         self.tier, self.current_pos = tier, current_pos
+        self.attacking, self.getting_back = False, False
         if tier == 1:
             self.image = RivalSpaceship.rival_spaceship_tier_1
         elif tier == 2:
@@ -183,13 +217,45 @@ class RivalSpaceship(pygame.sprite.Sprite):
         self.rect.y = current_pos[1]
         self.mask = pygame.mask.from_surface(self.image)
 
-    def update(self, dir, check_death=None):
-        global score
-        self.rect.x += dir
-        if check_death is not None:
-            if pygame.sprite.collide_mask(self, BULLET):
-                self.kill()
-                score += self.tier * 25
+    def update(self, dir, check_death, player_spaceship=None):
+        global score, rival_spaceships_movement
+        if not self.attacking and not self.getting_back:
+            self.rect.x += dir
+        elif not self.getting_back:
+            if self.rect.x > self.points[self.num]:
+                if self.rect.x - self.points[self.num] < 10:
+                    self.rect.x -= 1
+                else:
+                    self.rect.x -= 2
+            elif self.rect.x == self.points[self.num]:
+                self.num = (self.num + 1) % 2
+            else:
+                if abs(self.points[self.num] - self.rect.x) < 10:
+                    self.rect.x += 1
+                else:
+                    self.rect.x += 2
+            self.rect.y = (self.rect.y + 2) % 1080
+        else:
+            if self.destination == self.rect.x and self.rect.y == 150:
+                self.getting_back = False
+                rival_spaceships_movement = True
+            else:
+                diff = (self.destination - self.rect.x) / (150 - self.rect.y)
+                self.rect.y += 1
+                self.rect.x += diff
+        if self.rect.y == 70:
+            self.stop_attacking()
+        if pygame.sprite.collide_mask(self, BULLET):
+            self.kill()
+            score += self.tier * 25
+
+    def attack(self):
+        self.attacking, self.num = True, 0
+        self.destination = self.rect.x
+        self.points = [self.rect.x - 150, self.rect.x + 150]
+
+    def stop_attacking(self):
+        self.attacking, self.getting_back = False, True
 
 
 class PlayerSpaceship(pygame.sprite.Sprite):
@@ -279,7 +345,7 @@ def start_animation():
     pygame.time.set_timer(brightness, 10)
 
     SCREEN.fill((0, 0, 0))
-    font = pygame.font.Font('data/intro_font.ttf', 70)
+    font = pygame.font.Font('data/intro_font.ttf', resolution_fit_numbers['start_animation_font'])
     color = COLORS['intro_part_1']
     hsv = color.hsva
     color.hsva = (hsv[0], hsv[1], 4, hsv[3])
@@ -300,11 +366,13 @@ def start_animation():
                     color.hsva = (hsv[0], hsv[1], hsv[2] + 1, hsv[3])
 
         string_rendered = font.render('A long time ago in a galaxy far,', True, color)
-        intro_rect = string_rendered.get_rect(center=(WIDTH / 2, HEIGHT / 2 - 40))
+        intro_rect = string_rendered.get_rect(center=(WIDTH / 2,
+                                                      HEIGHT / 2 - resolution_fit_numbers['start_animation_text']))
         SCREEN.blit(string_rendered, intro_rect)
 
         string_rendered = font.render('far away...', True, color)
-        intro_rect = string_rendered.get_rect(center=(WIDTH / 2, HEIGHT / 2 + 40))
+        intro_rect = string_rendered.get_rect(center=(WIDTH / 2,
+                                                      HEIGHT / 2 + resolution_fit_numbers['start_animation_text']))
         SCREEN.blit(string_rendered, intro_rect)
 
         pygame.display.flip()
@@ -321,8 +389,15 @@ def new_level_animation():
     pass
 
 
-EXIT_BUTTON = MainScreenButton('Выход', None, 55, 150, 800, 'main_screen_button')
-START_GAME_BUTTON = MainScreenButton('Играть', None, 55, 150, 500, 'main_screen_button')
+EXIT_BUTTON = MainScreenButton('Выход', None,
+                               resolution_fit_numbers['main_screen_font'],
+                               resolution_fit_numbers['main_screen_x'],
+                               int(800 * devided_width), 'main_screen_button')
+
+START_GAME_BUTTON = MainScreenButton('Играть', None, resolution_fit_numbers['main_screen_font'],
+                                     resolution_fit_numbers['main_screen_x'],
+                                     int(500 * devided_width), 'main_screen_button')
+
 CURSOR = Cursor(CURSOR_SPRITE, pygame.mouse.get_pos())
 BULLET = pygame.sprite.Sprite()
 bullet_image = pygame.transform.smoothscale(pygame.image.load('data/new_bullet.png'), (6, 20))
@@ -330,9 +405,11 @@ bullet_image = bullet_image.convert_alpha()
 BULLET.image = bullet_image
 BULLET.rect = BULLET.image.get_rect()
 BULLET.rect.x = 930
-BULLET.rect.y = -20
+BULLET.rect.y = 2000
 BULLET.mask = pygame.mask.from_surface(BULLET.image)
 GAME_SPRITES = pygame.sprite.Group()
 GAME_SPRITES.add(BULLET)
 
-start_animation()
+
+if __name__ == '__main__':
+    start_animation()
