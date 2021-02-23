@@ -109,7 +109,7 @@ def new_game():
         if smb_attacks:
             if not attacking_spaceship.attacking:
                 smb_attacks, rival_spaceships_movement = False, False
-                attacking_spaceship.destination = attacking_spaceship.destination + moved - attacking_spaceship.moved
+                attacking_spaceship.destination_x = attacking_spaceship.destination_x + moved - attacking_spaceship.moved
                 pygame.time.set_timer(attack, random.randrange(10000, 14000), 1)
         for event in pygame.event.get():
             if event.type == pygame.KEYDOWN:
@@ -143,7 +143,7 @@ def new_game():
                 evasion = True if random.randrange(100) < 25 else False
 
         spacehips_before_update = len(RIVAL_SPACESHIPS)
-        if (bullet_flies and BULLET.rect.x in range(520 + moved, 1340 + moved)) or not rival_spaceships_movement :
+        if (bullet_flies and BULLET.rect.x in range(left + moved, right + 60 + moved)) or not rival_spaceships_movement :
             mod_90_num = moved - direction
             if ((BULLET.rect.x - mod_90_num) % 90 not in mod_90_nums and
                     (BULLET.rect.x - mod_90_num + 6) % 90 not in mod_90_nums and evasion) or\
@@ -236,11 +236,11 @@ class RivalSpaceship(pygame.sprite.Sprite):
                     self.rect.x += 2
             self.rect.y = (self.rect.y + 2) % 1080
         else:
-            if self.destination == self.rect.x and self.rect.y == 150:
+            if self.destination_x == self.rect.x and self.rect.y == self.destination_y:
                 self.getting_back = False
                 rival_spaceships_movement = True
             else:
-                diff = (self.destination - self.rect.x) / (150 - self.rect.y)
+                diff = (self.destination_x - self.rect.x) / (self.destination_y - self.rect.y)
                 self.rect.y += 1
                 self.rect.x += diff
         if self.rect.y == 70:
@@ -251,7 +251,7 @@ class RivalSpaceship(pygame.sprite.Sprite):
 
     def attack(self):
         self.attacking, self.num = True, 0
-        self.destination = self.rect.x
+        self.destination_x, self.destination_y = self.rect.x, self.rect.y
         self.points = [self.rect.x - 150, self.rect.x + 150]
 
     def stop_attacking(self):
