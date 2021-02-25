@@ -119,7 +119,7 @@ class PlayerSpaceship(pygame.sprite.Sprite):
         self.rect = self.image.get_rect(center=(WIDTH / 2, HEIGHT / 2 + 300))
 
     def update(self, direction):
-        if self.rect.x + direction in range(WIDTH + 1):
+        if self.rect.x + direction in range(WIDTH - int(80 * DEVIDED_WIDTH)):
             self.rect.x += direction
 
 
@@ -245,9 +245,11 @@ def pause(background, scoreboard):
 
 
 def new_game():
-    global game, score
+    global game, score, health
     health = 2
-    attack = pygame.USEREVENT + 3
+    death_cooldown = pygame.USEREVENT + 3
+    rivak_spaceship_shoots = pygame.USEREVENT + 4
+    attack = pygame.USEREVENT + 5
     someone_is_attacking = someone_is_getting_back = False
     pygame.time.set_timer(attack, random.randrange(8000, 12000), 1)
     mod_nums = [i % int(90 * DEVIDED_WIDTH) for i in range(int(530 * DEVIDED_WIDTH) % int(90 * DEVIDED_WIDTH),
@@ -291,6 +293,8 @@ def new_game():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     pause(background, scoreboard)
+            if event.type == death_cooldown:
+                player_spaceship = PlayerSpaceship(PLAYER_SPACESHIP)
             if event.type == attack:
                 attacking_candidates = list(filter(lambda x: abs(x.rect.x - player_spaceship.rect.x) < 70,
                                                    RIVAL_SPACESHIPS))
@@ -376,6 +380,7 @@ def new_game():
                 pygame.time.set_timer(attack, random.randrange(8000, 12000), 1)
 
         spacehips_before_update = len(RIVAL_SPACESHIPS)
+        health_before_update = health
         if ((bullet_flies and bullet.rect.x in range(left + moved, right + int(60 * DEVIDED_WIDTH) + moved)) and
                 (bullet.rect.x - moved + direction) % int(90 * DEVIDED_WIDTH) not in mod_nums and \
                 (bullet.rect.x - moved + direction + int(6 * DEVIDED_WIDTH)) % int(90 * DEVIDED_WIDTH) not in mod_nums \
@@ -384,6 +389,12 @@ def new_game():
             RIVAL_SPACESHIPS.update(0, player_spaceship)
         else:
             RIVAL_SPACESHIPS.update(direction, player_spaceship)
+        if health_before_update != health:
+            if health == 0:
+                pass
+            else:
+                PLAYER_SPACESHIP.empty()
+                pygame.time.set_timer(death_cooldown, 4500, 1)
 
         if len(PLAYER_BULLET) == 0 and bullet_flies:
             bullet_flies, able_to_shoot = False, True
@@ -443,7 +454,7 @@ class RivalSpaceship(pygame.sprite.Sprite):
         self.mask = pygame.mask.from_surface(self.image)
 
     def update(self, direction, player_spaceship):
-        global score
+        global score, health
         if self.mode == 'just_moving':
             self.rect.x += direction
         elif self.mode == 'getting_back':
@@ -480,6 +491,10 @@ class RivalSpaceship(pygame.sprite.Sprite):
                 self.mode = 'dead'
                 PLAYER_BULLET.empty()
                 self.kill()
+        if len(PLAYER_SPACESHIP):
+            if pygame.sprite.collide_mask(self, player_spaceship):
+                self.kill()
+                health -= 1
 
 
 EXIT_BUTTON = MainScreenButton('Выход', None,
