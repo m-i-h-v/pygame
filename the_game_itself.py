@@ -22,6 +22,7 @@ CURSOR_SPRITE = pygame.sprite.Group()
 PLAYER_SPACESHIP = pygame.sprite.Group()
 PLAYER_BULLET = pygame.sprite.Group()
 RIVAL_BULLETS = pygame.sprite.Group()
+EXPLOSIONS = pygame.sprite.Group()
 
 devided_width = WIDTH / 1920
 DEVIDED_WIDTH = WIDTH / 1920
@@ -121,6 +122,122 @@ class PlayerSpaceship(pygame.sprite.Sprite):
     def update(self, direction):
         if self.rect.x + direction in range(WIDTH - int(80 * DEVIDED_WIDTH)):
             self.rect.x += direction
+
+
+class RivalSpaceship(pygame.sprite.Sprite):
+    rival_spaceship_tier_1 = pygame.transform.smoothscale(pygame.image.load('data/sprites/spaceships/rival_spaceship_tier_1.png'),
+                                                          (int(60 * DEVIDED_WIDTH), int(60 * DEVIDED_WIDTH)))
+    rival_spaceship_tier_1 = pygame.transform.flip(rival_spaceship_tier_1, False, True)
+    rival_spaceship_tier_1 = rival_spaceship_tier_1.convert_alpha()
+
+    rival_spaceship_tier_2 = pygame.transform.smoothscale(pygame.image.load('data/sprites/spaceships/rival_spaceship_tier_2.png'),
+                                                          (int(60 * DEVIDED_WIDTH), int(60 * DEVIDED_WIDTH)))
+    rival_spaceship_tier_2 = pygame.transform.flip(rival_spaceship_tier_2, False, True)
+    rival_spaceship_tier_2 = rival_spaceship_tier_2.convert_alpha()
+
+    rival_spaceship_tier_3 = pygame.transform.smoothscale(pygame.image.load('data/sprites/spaceships/rival_spaceship_tier_3.png'),
+                                                          (int(60 * DEVIDED_WIDTH), int(60 * DEVIDED_WIDTH)))
+    rival_spaceship_tier_3 = pygame.transform.flip(rival_spaceship_tier_3, False, True)
+    rival_spaceship_tier_3 = rival_spaceship_tier_3.convert_alpha()
+
+    rival_spaceship_tier_4 = pygame.transform.smoothscale(pygame.image.load('data/sprites/spaceships/rival_spaceship_tier_4.png'),
+                                                          (int(60 * DEVIDED_WIDTH), int(60 * DEVIDED_WIDTH)))
+    rival_spaceship_tier_4 = pygame.transform.flip(rival_spaceship_tier_4, False, True)
+    rival_spaceship_tier_4 = rival_spaceship_tier_4.convert_alpha()
+
+    explosion = pygame.transform.smoothscale(pygame.image.load('data/sprites/explosion2.png'),
+                                             (int(480 * DEVIDED_WIDTH),
+                                              int(360 * DEVIDED_HEIGHT)))
+    explosion = explosion.convert_alpha()
+
+    def __init__(self, group, tier, current_pos):
+        super().__init__(group)
+        self.tier, self.current_pos = tier, current_pos
+        self.mode = 'just_moving'
+        if tier == 1:
+            self.image = RivalSpaceship.rival_spaceship_tier_1
+        elif tier == 2:
+            self.image = RivalSpaceship.rival_spaceship_tier_2
+        elif tier == 3:
+            self.image = RivalSpaceship.rival_spaceship_tier_3
+        else:
+            self.image = RivalSpaceship.rival_spaceship_tier_4
+        self.rect = self.image.get_rect()
+        self.rect.x, self.rect.y = current_pos[0], current_pos[1]
+        self.mask = pygame.mask.from_surface(self.image)
+
+    def update(self, direction, player_spaceship):
+        global score, health
+        if self.mode == 'just_moving':
+            self.rect.x += direction
+        elif self.mode == 'getting_back':
+            if self.rect.x != self.destination:
+                if abs(self.rect.x - self.destination) < 3:
+                    self.rect.x += 1 if self.destination - self.rect.x > 0 else -1
+                else:
+                    self.rect.x += 2 if self.destination - self.rect.x > 0 else -2
+            if self.rect.y != self.take_off_position_y:
+                self.rect.y += 2
+            if self.rect.x == self.destination and self.rect.y == self.take_off_position_y:
+                self.mode = 'just_moving'
+        elif self.mode == 'attacking':
+            if self.rect.y % 300 in range(3, 5):
+                Bullet(RIVAL_BULLETS, 'rival_spaceship', self.rect.x + int(30 * DEVIDED_WIDTH), self.rect.y)
+            if self.rect.y % HEIGHT != int(80 * DEVIDED_WIDTH):
+                self.rect.y = (self.rect.y + 2) % HEIGHT
+                if self.rect.x > self.points[self.num]:
+                    if self.rect.x - self.points[self.num] < 10:
+                        self.rect.x -= 1
+                    else:
+                        self.rect.x -= 2
+                elif self.rect.x == self.points[self.num]:
+                    self.num = (self.num + 1) % 2
+                else:
+                    if self.points[self.num] - self.rect.x < 10:
+                        self.rect.x += 1
+                    else:
+                        self.rect.x += 2
+            else:
+                self.mode = 'getting_back'
+
+        if len(PLAYER_BULLET):
+            if pygame.sprite.collide_mask(self, PLAYER_BULLET.sprites()[0]):
+                score += self.tier * 25
+                self.mode = 'dead'
+                AnimatedSprite(RivalSpaceship.explosion, 8, 6, self.rect.x, self.rect.y)
+                PLAYER_BULLET.empty()
+                self.kill()
+        if len(PLAYER_SPACESHIP):
+            if pygame.sprite.collide_mask(self, player_spaceship):
+                AnimatedSprite(RivalSpaceship.explosion, 8, 6, self.rect.x, self.rect.y)
+                self.mode = 'dead'
+                self.kill()
+                health -= 1
+
+
+class AnimatedSprite(pygame.sprite.Sprite):
+    def __init__(self, sheet, columns, rows, x, y):
+        super().__init__(EXPLOSIONS)
+        self.frames = []
+        self.cut_sheet(sheet, columns, rows)
+        self.cur_frame = 0
+        self.image = self.frames[self.cur_frame]
+        self.rect = self.rect.move(x, y)
+
+    def cut_sheet(self, sheet, columns, rows):
+        self.rect = pygame.Rect(0, 0, sheet.get_width() // columns,
+                                sheet.get_height() // rows)
+        for j in range(rows):
+            for i in range(columns):
+                frame_location = (self.rect.w * i, self.rect.h * j)
+                self.frames.append(sheet.subsurface(pygame.Rect(
+                    frame_location, self.rect.size)))
+
+    def update(self):
+        self.cur_frame = (self.cur_frame + 1) % len(self.frames)
+        self.image = self.frames[self.cur_frame]
+        if self.cur_frame == 15:
+            self.kill()
 
 
 def start_animation():
@@ -246,10 +363,13 @@ def pause(background, scoreboard):
 
 def new_game():
     global game, score, health
+    explosion = pygame.transform.smoothscale(pygame.image.load('data/sprites/explosion2.png'),
+                                             (int(480 * DEVIDED_WIDTH),
+                                              int(360 * DEVIDED_HEIGHT)))
+    explosion = explosion.convert_alpha()
     health = 2
     death_cooldown = pygame.USEREVENT + 3
-    rivak_spaceship_shoots = pygame.USEREVENT + 4
-    attack = pygame.USEREVENT + 5
+    attack = pygame.USEREVENT + 4
     someone_is_attacking = someone_is_getting_back = False
     pygame.time.set_timer(attack, random.randrange(8000, 12000), 1)
     mod_nums = [i % int(90 * DEVIDED_WIDTH) for i in range(int(530 * DEVIDED_WIDTH) % int(90 * DEVIDED_WIDTH),
@@ -329,11 +449,11 @@ def new_game():
                 else:
                     pygame.time.set_timer(attack, (random.randrange(10000, 14000, 1)))
         keys = pygame.key.get_pressed()
-        if keys[pygame.K_LEFT]:
+        if keys[pygame.K_LEFT] and player_spaceship is not None:
             PLAYER_SPACESHIP.update(-3)
-        if keys[pygame.K_RIGHT]:
+        if keys[pygame.K_RIGHT] and player_spaceship is not None:
             PLAYER_SPACESHIP.update(3)
-        if keys[pygame.K_UP]:
+        if keys[pygame.K_UP] and player_spaceship is not None:
             if able_to_shoot:
                 bullet = Bullet(PLAYER_BULLET, 'player_spaceship',
                        player_spaceship.rect.x + int(40 * DEVIDED_WIDTH), player_spaceship.rect.y)
@@ -389,10 +509,20 @@ def new_game():
             RIVAL_SPACESHIPS.update(0, player_spaceship)
         else:
             RIVAL_SPACESHIPS.update(direction, player_spaceship)
+
+        for bullet_ in RIVAL_BULLETS.sprites():
+            if player_spaceship is not None:
+                if pygame.sprite.collide_mask(player_spaceship, bullet_):
+                    health -= 1
+                    bullet_.kill()
+                    break
+
         if health_before_update != health:
             if health == 0:
                 pass
             else:
+                AnimatedSprite(explosion, 8, 6, player_spaceship.rect.x, player_spaceship.rect.y)
+                player_spaceship = None
                 PLAYER_SPACESHIP.empty()
                 pygame.time.set_timer(death_cooldown, 4500, 1)
 
@@ -400,6 +530,7 @@ def new_game():
             bullet_flies, able_to_shoot = False, True
         RIVAL_BULLETS.update()
         PLAYER_BULLET.update()
+        EXPLOSIONS.update()
 
         SCREEN.blit(background, (0, 0))
         SCREEN.blit(scoreboard, (int(1500 * DEVIDED_WIDTH), int(50 * DEVIDED_WIDTH)))
@@ -407,6 +538,7 @@ def new_game():
         RIVAL_SPACESHIPS.draw(SCREEN)
         RIVAL_BULLETS.draw(SCREEN)
         PLAYER_BULLET.draw(SCREEN)
+        EXPLOSIONS.draw(SCREEN)
         pygame.display.flip()
         CLOCK.tick(FPS)
 
@@ -414,87 +546,6 @@ def new_game():
     RIVAL_BULLETS.empty()
     RIVAL_SPACESHIPS.empty()
     PLAYER_SPACESHIP.empty()
-
-
-class RivalSpaceship(pygame.sprite.Sprite):
-    rival_spaceship_tier_1 = pygame.transform.smoothscale(pygame.image.load('data/sprites/spaceships/rival_spaceship_tier_1.png'),
-                                                          (int(60 * DEVIDED_WIDTH), int(60 * DEVIDED_WIDTH)))
-    rival_spaceship_tier_1 = pygame.transform.flip(rival_spaceship_tier_1, False, True)
-    rival_spaceship_tier_1 = rival_spaceship_tier_1.convert_alpha()
-
-    rival_spaceship_tier_2 = pygame.transform.smoothscale(pygame.image.load('data/sprites/spaceships/rival_spaceship_tier_2.png'),
-                                                          (int(60 * DEVIDED_WIDTH), int(60 * DEVIDED_WIDTH)))
-    rival_spaceship_tier_2 = pygame.transform.flip(rival_spaceship_tier_2, False, True)
-    rival_spaceship_tier_2 = rival_spaceship_tier_2.convert_alpha()
-
-    rival_spaceship_tier_3 = pygame.transform.smoothscale(pygame.image.load('data/sprites/spaceships/rival_spaceship_tier_3.png'),
-                                                          (int(60 * DEVIDED_WIDTH), int(60 * DEVIDED_WIDTH)))
-    rival_spaceship_tier_3 = pygame.transform.flip(rival_spaceship_tier_3, False, True)
-    rival_spaceship_tier_3 = rival_spaceship_tier_3.convert_alpha()
-
-    rival_spaceship_tier_4 = pygame.transform.smoothscale(pygame.image.load('data/sprites/spaceships/rival_spaceship_tier_4.png'),
-                                                          (int(60 * DEVIDED_WIDTH), int(60 * DEVIDED_WIDTH)))
-    rival_spaceship_tier_4 = pygame.transform.flip(rival_spaceship_tier_4, False, True)
-    rival_spaceship_tier_4 = rival_spaceship_tier_4.convert_alpha()
-
-    def __init__(self, group, tier, current_pos):
-        super().__init__(group)
-        self.tier, self.current_pos = tier, current_pos
-        self.mode = 'just_moving'
-        if tier == 1:
-            self.image = RivalSpaceship.rival_spaceship_tier_1
-        elif tier == 2:
-            self.image = RivalSpaceship.rival_spaceship_tier_2
-        elif tier == 3:
-            self.image = RivalSpaceship.rival_spaceship_tier_3
-        else:
-            self.image = RivalSpaceship.rival_spaceship_tier_4
-        self.rect = self.image.get_rect()
-        self.rect.x, self.rect.y = current_pos[0], current_pos[1]
-        self.mask = pygame.mask.from_surface(self.image)
-
-    def update(self, direction, player_spaceship):
-        global score, health
-        if self.mode == 'just_moving':
-            self.rect.x += direction
-        elif self.mode == 'getting_back':
-            if self.rect.x != self.destination:
-                if abs(self.rect.x - self.destination) < 3:
-                    self.rect.x += 1 if self.destination - self.rect.x > 0 else -1
-                else:
-                    self.rect.x += 2 if self.destination - self.rect.x > 0 else -2
-            if self.rect.y != self.take_off_position_y:
-                self.rect.y += 2
-            if self.rect.x == self.destination and self.rect.y == self.take_off_position_y:
-                self.mode = 'just_moving'
-        elif self.mode == 'attacking':
-            if self.rect.y % HEIGHT != int(80 * DEVIDED_WIDTH):
-                self.rect.y = (self.rect.y + 2) % HEIGHT
-                if self.rect.x > self.points[self.num]:
-                    if self.rect.x - self.points[self.num] < 10:
-                        self.rect.x -= 1
-                    else:
-                        self.rect.x -= 2
-                elif self.rect.x == self.points[self.num]:
-                    self.num = (self.num + 1) % 2
-                else:
-                    if self.points[self.num] - self.rect.x < 10:
-                        self.rect.x += 1
-                    else:
-                        self.rect.x += 2
-            else:
-                self.mode = 'getting_back'
-
-        if len(PLAYER_BULLET):
-            if pygame.sprite.collide_mask(self, PLAYER_BULLET.sprites()[0]):
-                score += self.tier * 25
-                self.mode = 'dead'
-                PLAYER_BULLET.empty()
-                self.kill()
-        if len(PLAYER_SPACESHIP):
-            if pygame.sprite.collide_mask(self, player_spaceship):
-                self.kill()
-                health -= 1
 
 
 EXIT_BUTTON = MainScreenButton('Выход', None,
