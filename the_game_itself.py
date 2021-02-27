@@ -554,7 +554,8 @@ def new_game():
 
         if health_before_update != health:
             if health == 0:
-                pass
+                defeat_animation()
+                break
             else:
                 HEALTH_POINTS.remove(HEALTH_POINTS.sprites()[-1])
                 AnimatedSprite(explosion, 8, 6, player_spaceship.rect.x, player_spaceship.rect.y)
@@ -593,6 +594,10 @@ def new_level_animation():
 
 
 def victory_animation():
+    pass
+
+
+def defeat_animation():
     pass
 
 
