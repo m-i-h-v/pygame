@@ -4,6 +4,10 @@ import random
 pygame.init()
 pygame.mouse.set_visible(False)
 
+pygame.mixer.init()
+explosion_sound = pygame.mixer.Sound('data/sounds/explosion.mp3')
+shot_sound = pygame.mixer.Sound('data/sounds/shot.mp3')
+
 COLORS = {'intro_part_1': pygame.Color((74, 212, 237)),
           'intro_part_2': pygame.Color((251, 232, 32)),
           'main_screen_button': pygame.Color((251, 232, 32)),
@@ -23,6 +27,7 @@ PLAYER_SPACESHIP = pygame.sprite.Group()
 PLAYER_BULLET = pygame.sprite.Group()
 RIVAL_BULLETS = pygame.sprite.Group()
 EXPLOSIONS = pygame.sprite.Group()
+HEALTH_POINTS = pygame.sprite.Group()
 
 devided_width = WIDTH / 1920
 DEVIDED_WIDTH = WIDTH / 1920
@@ -35,7 +40,7 @@ RESULUTION_FIT_NUMBERS = {'start_animation_font': int(70 * devided_width),
 
 
 class Cursor(pygame.sprite.Sprite):
-    cursor = pygame.image.load('data/cursor.png')
+    cursor = pygame.image.load('data/sprites/cursor.png')
     cursor = cursor.convert_alpha()
     cursor = pygame.transform.smoothscale(cursor, (int(50 * DEVIDED_WIDTH), int(50 * DEVIDED_WIDTH)))
 
@@ -145,7 +150,7 @@ class RivalSpaceship(pygame.sprite.Sprite):
     rival_spaceship_tier_4 = pygame.transform.flip(rival_spaceship_tier_4, False, True)
     rival_spaceship_tier_4 = rival_spaceship_tier_4.convert_alpha()
 
-    explosion = pygame.transform.smoothscale(pygame.image.load('data/sprites/explosion2.png'),
+    explosion = pygame.transform.smoothscale(pygame.image.load('data/sprites/explosion.png'),
                                              (int(480 * DEVIDED_WIDTH),
                                               int(360 * DEVIDED_HEIGHT)))
     explosion = explosion.convert_alpha()
@@ -183,6 +188,7 @@ class RivalSpaceship(pygame.sprite.Sprite):
         elif self.mode == 'attacking':
             if self.rect.y % 300 in range(3, 5):
                 Bullet(RIVAL_BULLETS, 'rival_spaceship', self.rect.x + int(30 * DEVIDED_WIDTH), self.rect.y)
+                shot_sound.play()
             if self.rect.y % HEIGHT != int(80 * DEVIDED_WIDTH):
                 self.rect.y = (self.rect.y + 2) % HEIGHT
                 if self.rect.x > self.points[self.num]:
@@ -204,6 +210,7 @@ class RivalSpaceship(pygame.sprite.Sprite):
             if pygame.sprite.collide_mask(self, PLAYER_BULLET.sprites()[0]):
                 score += self.tier * 25
                 self.mode = 'dead'
+                explosion_sound.play()
                 AnimatedSprite(RivalSpaceship.explosion, 8, 6, self.rect.x, self.rect.y)
                 PLAYER_BULLET.empty()
                 self.kill()
@@ -211,6 +218,7 @@ class RivalSpaceship(pygame.sprite.Sprite):
             if pygame.sprite.collide_mask(self, player_spaceship):
                 AnimatedSprite(RivalSpaceship.explosion, 8, 6, self.rect.x, self.rect.y)
                 self.mode = 'dead'
+                explosion_sound.play()
                 self.kill()
                 health -= 1
 
@@ -236,7 +244,7 @@ class AnimatedSprite(pygame.sprite.Sprite):
     def update(self):
         self.cur_frame = (self.cur_frame + 1) % len(self.frames)
         self.image = self.frames[self.cur_frame]
-        if self.cur_frame == 15:
+        if self.cur_frame == 47:
             self.kill()
 
 
@@ -319,8 +327,10 @@ def load_level(level):
                                    (int((ship * 90 + 530) * DEVIDED_WIDTH), int((ship_row * 90 + 150) * DEVIDED_WIDTH)))
 
 
-def pause(background, scoreboard):
+def pause(background, scoreboard, attack, death_cooldown):
     global game
+    start_time = pygame.time.get_ticks()
+    attack_timer = death_cooldown_timer = False
     pause_menu = pygame.Surface((int(600 * DEVIDED_WIDTH), int(400 * DEVIDED_HEIGHT)))
     menu_rect = pause_menu.get_rect(center=(int(WIDTH * DEVIDED_WIDTH / 2), int(HEIGHT * DEVIDED_HEIGHT / 2)))
     pause_menu.fill((32, 32, 32))
@@ -338,36 +348,60 @@ def pause(background, scoreboard):
                 exit_button.check_selected(event.pos[0], event.pos[1])
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if exit_button.selected:
-
                     game = False
                     pause_on = False
                 if resume_button.selected:
                     pause_on = False
+            if event.type == attack:
+                attack_timer = True
+                attack_timer_time = pygame.time.get_ticks() - start_time
+            if event.type == death_cooldown:
+                death_cooldown_timer = True
+                death_cooldown_timer_time = pygame.time.get_ticks() - start_time
 
         SCREEN.blit(background, (0, 0))
         PLAYER_BULLET.draw(SCREEN)
         RIVAL_BULLETS.draw(SCREEN)
         RIVAL_SPACESHIPS.draw(SCREEN)
         PLAYER_SPACESHIP.draw(SCREEN)
+        EXPLOSIONS.draw(SCREEN)
 
         SCREEN.blit(pause_menu, menu_rect)
         resume_button.update(SCREEN)
         exit_button.update(SCREEN)
+        HEALTH_POINTS.draw(SCREEN)
 
 
-        SCREEN.blit(scoreboard, (1500, 50))
+        SCREEN.blit(scoreboard, (int(1500 * DEVIDED_WIDTH), int(50 * DEVIDED_HEIGHT)))
         CURSOR_SPRITE.draw(SCREEN)
         pygame.display.flip()
         CLOCK.tick(FPS)
 
+    if attack_timer:
+        pygame.time.set_timer(attack, attack_timer_time, 1)
+    if death_cooldown_timer:
+        pygame.time.set_timer(death_cooldown, death_cooldown_timer_time, 1)
+
 
 def new_game():
     global game, score, health
-    explosion = pygame.transform.smoothscale(pygame.image.load('data/sprites/explosion2.png'),
+    health_icon = pygame.transform.smoothscale(pygame.image.load('data/sprites/spaceships/player_spaceship.png'),
+                                               (int(35 * DEVIDED_WIDTH), int(30 * DEVIDED_WIDTH)))
+    health_icon.convert_alpha()
+    explosion = pygame.transform.smoothscale(pygame.image.load('data/sprites/explosion.png'),
                                              (int(480 * DEVIDED_WIDTH),
                                               int(360 * DEVIDED_HEIGHT)))
     explosion = explosion.convert_alpha()
-    health = 2
+
+    health = 3
+    for i in range(health):
+        sprite = pygame.sprite.Sprite()
+        sprite.image = health_icon
+        sprite.rect = sprite.image.get_rect()
+        sprite.rect.x = int(1200 * DEVIDED_WIDTH + 55 * DEVIDED_WIDTH * i)
+        sprite.rect.y = int(50 * DEVIDED_WIDTH)
+        HEALTH_POINTS.add(sprite)
+
     death_cooldown = pygame.USEREVENT + 3
     attack = pygame.USEREVENT + 4
     someone_is_attacking = someone_is_getting_back = False
@@ -396,11 +430,11 @@ def new_game():
                 moved, direction, bullet_flies, able_to_shoot = 0, random.choice((1, -1)), False, True
                 PLAYER_BULLET.empty()
                 RIVAL_BULLETS.empty()
-                break
+                new_level_animation()
             else:
                 PLAYER_BULLET.empty()
                 RIVAL_BULLETS.empty()
-                print('Victory')
+                victory_animation()
                 break
         spaceships = sorted(RIVAL_SPACESHIPS, key=lambda x: x.rect.x)
         left, right = spaceships[0].rect.x, spaceships[-1].rect.x
@@ -412,7 +446,7 @@ def new_game():
         for event in pygame.event.get():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    pause(background, scoreboard)
+                    pause(background, scoreboard, attack, death_cooldown)
             if event.type == death_cooldown:
                 player_spaceship = PlayerSpaceship(PLAYER_SPACESHIP)
             if event.type == attack:
@@ -457,8 +491,9 @@ def new_game():
             if able_to_shoot:
                 bullet = Bullet(PLAYER_BULLET, 'player_spaceship',
                        player_spaceship.rect.x + int(40 * DEVIDED_WIDTH), player_spaceship.rect.y)
+                shot_sound.play()
                 bullet_flies, able_to_shoot = True, False
-                evasion = True if random.randrange(100) < 25 else False
+                evasion = True if random.randrange(100) < 40 else False
 
         if someone_is_attacking:
             someone_is_getting_back_local = False
@@ -521,8 +556,10 @@ def new_game():
             if health == 0:
                 pass
             else:
+                HEALTH_POINTS.remove(HEALTH_POINTS.sprites()[-1])
                 AnimatedSprite(explosion, 8, 6, player_spaceship.rect.x, player_spaceship.rect.y)
                 player_spaceship = None
+                explosion_sound.play()
                 PLAYER_SPACESHIP.empty()
                 pygame.time.set_timer(death_cooldown, 4500, 1)
 
@@ -538,6 +575,7 @@ def new_game():
         RIVAL_SPACESHIPS.draw(SCREEN)
         RIVAL_BULLETS.draw(SCREEN)
         PLAYER_BULLET.draw(SCREEN)
+        HEALTH_POINTS.draw(SCREEN)
         EXPLOSIONS.draw(SCREEN)
         pygame.display.flip()
         CLOCK.tick(FPS)
@@ -546,6 +584,16 @@ def new_game():
     RIVAL_BULLETS.empty()
     RIVAL_SPACESHIPS.empty()
     PLAYER_SPACESHIP.empty()
+    EXPLOSIONS.empty()
+    HEALTH_POINTS.empty()
+
+
+def new_level_animation():
+    pass
+
+
+def victory_animation():
+    pass
 
 
 EXIT_BUTTON = MainScreenButton('Выход', None,
