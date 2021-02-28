@@ -78,11 +78,11 @@ class MainScreenButton:
             screen.blit(button_surface, (self.x, self.y))
         else:
             if self.type == 'exit':
-                rect = button_surface.get_rect(center=(int(WIDTH * DEVIDED_WIDTH / 2),
-                                                       int(HEIGHT * DEVIDED_HEIGHT / 2) + int(50 * DEVIDED_HEIGHT)))
+                rect = button_surface.get_rect(center=(int(WIDTH / 2),
+                                                       int(HEIGHT / 2) + int(50 * DEVIDED_HEIGHT)))
             else:
-                rect = button_surface.get_rect(center=(int(WIDTH * DEVIDED_WIDTH / 2),
-                                                       int(HEIGHT * DEVIDED_HEIGHT / 2) - int(50 * DEVIDED_HEIGHT)))
+                rect = button_surface.get_rect(center=(int(WIDTH / 2),
+                                                       int(HEIGHT / 2) - int(50 * DEVIDED_HEIGHT)))
             self.x, self.y = rect.x, rect.y
             screen.blit(button_surface, rect)
 
@@ -189,7 +189,7 @@ class RivalSpaceship(pygame.sprite.Sprite):
             if self.rect.y % 300 in range(3, 5):
                 Bullet(RIVAL_BULLETS, 'rival_spaceship', self.rect.x + int(30 * DEVIDED_WIDTH), self.rect.y)
                 shot_sound.play()
-            if self.rect.y % HEIGHT != int(80 * DEVIDED_WIDTH):
+            if self.rect.y % HEIGHT not in range(int(80 * DEVIDED_HEIGHT) - 2, int(80 * DEVIDED_HEIGHT)):
                 self.rect.y = (self.rect.y + 2) % HEIGHT
                 if self.rect.x > self.points[self.num]:
                     if self.rect.x - self.points[self.num] < 10:
@@ -332,7 +332,7 @@ def pause(background, scoreboard, attack, death_cooldown):
     start_time = pygame.time.get_ticks()
     attack_timer = death_cooldown_timer = False
     pause_menu = pygame.Surface((int(600 * DEVIDED_WIDTH), int(400 * DEVIDED_HEIGHT)))
-    menu_rect = pause_menu.get_rect(center=(int(WIDTH * DEVIDED_WIDTH / 2), int(HEIGHT * DEVIDED_HEIGHT / 2)))
+    menu_rect = pause_menu.get_rect(center=(int(WIDTH / 2), int(HEIGHT / 2)))
     pause_menu.fill((32, 32, 32))
     resume_button = MainScreenButton('Продолжить', None, int(55 * DEVIDED_WIDTH),
                                      None, None, 'main_screen_button', True, 'resume')
@@ -571,7 +571,7 @@ def new_game():
         EXPLOSIONS.update()
 
         SCREEN.blit(background, (0, 0))
-        SCREEN.blit(scoreboard, (int(1500 * DEVIDED_WIDTH), int(50 * DEVIDED_WIDTH)))
+        SCREEN.blit(scoreboard, (int(1500 * DEVIDED_WIDTH), int(50 * DEVIDED_HEIGHT)))
         PLAYER_SPACESHIP.draw(SCREEN)
         RIVAL_SPACESHIPS.draw(SCREEN)
         RIVAL_BULLETS.draw(SCREEN)
