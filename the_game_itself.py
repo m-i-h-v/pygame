@@ -7,6 +7,8 @@ pygame.mouse.set_visible(False)
 pygame.mixer.init()
 explosion_sound = pygame.mixer.Sound('data/sounds/explosion.mp3')
 shot_sound = pygame.mixer.Sound('data/sounds/shot.mp3')
+victory = pygame.mixer.Sound('data/sounds/victory.mp3')
+defeat = pygame.mixer.Sound('data/sounds/defeat.mp3')
 
 COLORS = {'intro_part_1': pygame.Color((74, 212, 237)),
           'intro_part_2': pygame.Color((251, 232, 32)),
@@ -28,6 +30,7 @@ PLAYER_BULLET = pygame.sprite.Group()
 RIVAL_BULLETS = pygame.sprite.Group()
 EXPLOSIONS = pygame.sprite.Group()
 HEALTH_POINTS = pygame.sprite.Group()
+FIREWORKS = pygame.sprite.Group()
 
 devided_width = WIDTH / 1920
 DEVIDED_WIDTH = WIDTH / 1920
@@ -211,12 +214,12 @@ class RivalSpaceship(pygame.sprite.Sprite):
                 score += self.tier * 25
                 self.mode = 'dead'
                 explosion_sound.play()
-                AnimatedSprite(RivalSpaceship.explosion, 8, 6, self.rect.x, self.rect.y)
+                AnimatedSprite(EXPLOSIONS, RivalSpaceship.explosion, 8, 6, self.rect.x, self.rect.y)
                 PLAYER_BULLET.empty()
                 self.kill()
         if len(PLAYER_SPACESHIP):
             if pygame.sprite.collide_mask(self, player_spaceship):
-                AnimatedSprite(RivalSpaceship.explosion, 8, 6, self.rect.x, self.rect.y)
+                AnimatedSprite(EXPLOSIONS, RivalSpaceship.explosion, 8, 6, self.rect.x, self.rect.y)
                 self.mode = 'dead'
                 explosion_sound.play()
                 self.kill()
@@ -224,8 +227,8 @@ class RivalSpaceship(pygame.sprite.Sprite):
 
 
 class AnimatedSprite(pygame.sprite.Sprite):
-    def __init__(self, sheet, columns, rows, x, y):
-        super().__init__(EXPLOSIONS)
+    def __init__(self, group, sheet, columns, rows, x, y):
+        super().__init__(group)
         self.frames = []
         self.cut_sheet(sheet, columns, rows)
         self.cur_frame = 0
@@ -244,7 +247,7 @@ class AnimatedSprite(pygame.sprite.Sprite):
     def update(self):
         self.cur_frame = (self.cur_frame + 1) % len(self.frames)
         self.image = self.frames[self.cur_frame]
-        if self.cur_frame == 47:
+        if self.cur_frame == len(self.frames) - 1:
             self.kill()
 
 
@@ -434,7 +437,7 @@ def new_game():
             else:
                 PLAYER_BULLET.empty()
                 RIVAL_BULLETS.empty()
-                victory_animation()
+                victory_animation(score)
                 break
         spaceships = sorted(RIVAL_SPACESHIPS, key=lambda x: x.rect.x)
         left, right = spaceships[0].rect.x, spaceships[-1].rect.x
@@ -554,11 +557,11 @@ def new_game():
 
         if health_before_update != health:
             if health == 0:
-                defeat_animation()
+                defeat_animation(score)
                 break
             else:
                 HEALTH_POINTS.remove(HEALTH_POINTS.sprites()[-1])
-                AnimatedSprite(explosion, 8, 6, player_spaceship.rect.x, player_spaceship.rect.y)
+                AnimatedSprite(EXPLOSIONS, explosion, 8, 6, player_spaceship.rect.x, player_spaceship.rect.y)
                 player_spaceship = None
                 explosion_sound.play()
                 PLAYER_SPACESHIP.empty()
@@ -593,15 +596,98 @@ def new_level_animation():
     pass
 
 
-def victory_animation():
-    pass
+def victory_animation(score):
+    background = pygame.transform.smoothscale(pygame.image.load('data/backgrounds/background_start_game.png'),
+                                              (WIDTH, HEIGHT))
+    firework = pygame.transform.smoothscale(pygame.image.load('data/sprites/firework.png'),
+                                            (int(960 * DEVIDED_WIDTH), int(1536 * DEVIDED_HEIGHT)))
+
+    firework = firework.convert_alpha()
+    animation, direction = True, 1
+    able_to_skip = False
+    count = 0
+    brightness = pygame.USEREVENT + 6
+    pygame.time.set_timer(brightness, 10)
+
+    font = pygame.font.Font(None, int(100 * DEVIDED_WIDTH))
+    scoreboard = pygame.surface.Surface((int(400 * DEVIDED_WIDTH), int(200 * DEVIDED_HEIGHT)), pygame.SRCALPHA)
+    score_rendered = font.render(f'Счёт: {score}', True, pygame.Color('white'))
+    rect = score_rendered.get_rect(center=(int(200 * DEVIDED_WIDTH), int(100 * DEVIDED_HEIGHT)))
+    scoreboard.blit(score_rendered, rect)
+    rect = scoreboard.get_rect(center=(WIDTH // 2, int(HEIGHT / 2 - 300 * DEVIDED_HEIGHT)))
+
+    SCREEN.blit(background, (0, 0))
+    defeat_font = pygame.font.Font(None, int(100 * DEVIDED_WIDTH))
+    skip_font = pygame.font.Font(None, int(50 * DEVIDED_WIDTH))
+    victory_color = pygame.Color((251, 232, 32))
+    hsv = victory_color.hsva
+    victory_color.hsva = (hsv[0], hsv[1], 4, hsv[3])
+
+    skip_color = pygame.Color('white')
+    hsv = skip_color.hsva
+    skip_color.hsva = (hsv[0], hsv[1], 4, hsv[3])
+
+    pygame.display.flip()
+    victory.play()
+
+    while animation:
+        count = (count + 1) % 3
+        SCREEN.blit(background, (0, 0))
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN and able_to_skip:
+                animation = event.key != pygame.K_ESCAPE and event.key != pygame.K_SPACE
+            if event.type == brightness:
+                if able_to_skip:
+                    hsv = skip_color.hsva
+                    if hsv[2] > 99:
+                        direction *= -1
+                    elif hsv[2] < 1:
+                        direction *= -1
+                    skip_color.hsva = (hsv[0], hsv[1], hsv[2] + direction, hsv[3])
+                else:
+                    hsv = victory_color.hsva
+                    if hsv[2] > 99:
+                        able_to_skip = True
+                    else:
+                        victory_color.hsva = (hsv[0], hsv[1], hsv[2] + 1, hsv[3])
+
+        if count == 0:
+            AnimatedSprite(FIREWORKS, firework, 5, 8, random.randrange(WIDTH), random.randrange(HEIGHT))
+
+        string_rendered = defeat_font.render('Победа!', True, victory_color)
+        intro_rect = string_rendered.get_rect(center=(WIDTH / 2,
+                                                      HEIGHT / 2 - int(40 * DEVIDED_HEIGHT)))
+        SCREEN.blit(string_rendered, intro_rect)
+
+        string_rendered = skip_font.render('Нажмите ESC или пробел', False, skip_color)
+        intro_rect = string_rendered.get_rect(center=(WIDTH / 2,
+                                                      HEIGHT / 2 + int(150 * DEVIDED_HEIGHT)))
+        FIREWORKS.update()
+        FIREWORKS.draw(SCREEN)
+        if able_to_skip:
+            SCREEN.blit(scoreboard, rect)
+        SCREEN.blit(string_rendered, intro_rect)
+
+        CLOCK.tick(FPS)
+        pygame.display.flip()
+
+    pygame.time.set_timer(brightness, 0)
 
 
-def defeat_animation():
+
+
+def defeat_animation(score):
     animation, able_to_skip = True, False
     direction = 1
     brightness = pygame.USEREVENT + 5
     pygame.time.set_timer(brightness, 10)
+
+    font = pygame.font.Font(None, int(100 * DEVIDED_WIDTH))
+    scoreboard = pygame.surface.Surface((int(400 * DEVIDED_WIDTH), int(200 * DEVIDED_HEIGHT)), pygame.SRCALPHA)
+    score_rendered = font.render(f'Счёт: {score}', True, pygame.Color('white'))
+    rect = score_rendered.get_rect(center=(int(200 * DEVIDED_WIDTH), int(100 * DEVIDED_HEIGHT)))
+    scoreboard.blit(score_rendered, rect)
+    rect = scoreboard.get_rect(center=(WIDTH // 2, int(HEIGHT / 2 - 300 * DEVIDED_HEIGHT)))
 
     SCREEN.fill((0, 0, 0))
     defeat_font = pygame.font.Font(None, int(100 * DEVIDED_WIDTH))
@@ -615,6 +701,7 @@ def defeat_animation():
     skip_color.hsva = (hsv[0], hsv[1], 4, hsv[3])
 
     pygame.display.flip()
+    defeat.play()
 
     while animation:
         for event in pygame.event.get():
@@ -640,11 +727,14 @@ def defeat_animation():
                                                       HEIGHT / 2 - int(40 * DEVIDED_HEIGHT)))
         SCREEN.blit(string_rendered, intro_rect)
 
-        string_rendered = skip_font.render('Нажмите ESC', False, skip_color)
+        string_rendered = skip_font.render('Нажмите ESC или пробел', False, skip_color)
         intro_rect = string_rendered.get_rect(center=(WIDTH / 2,
                                                       HEIGHT / 2 + int(150 * DEVIDED_HEIGHT)))
+        if able_to_skip:
+            SCREEN.blit(scoreboard, rect)
         SCREEN.blit(string_rendered, intro_rect)
 
+        CLOCK.tick(FPS)
         pygame.display.flip()
 
     pygame.time.set_timer(brightness, 0)
