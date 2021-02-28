@@ -249,7 +249,7 @@ class AnimatedSprite(pygame.sprite.Sprite):
 
 
 def start_animation():
-    intro_part_1, intro_part_2 = True, False
+    intro_part_1 = True
     first_intro, text_top_coord = pygame.USEREVENT + 1, 0
     pygame.time.set_timer(first_intro, 4000)
     brightness = pygame.USEREVENT + 2
@@ -598,7 +598,56 @@ def victory_animation():
 
 
 def defeat_animation():
-    pass
+    animation, able_to_skip = True, False
+    direction = 1
+    brightness = pygame.USEREVENT + 5
+    pygame.time.set_timer(brightness, 10)
+
+    SCREEN.fill((0, 0, 0))
+    defeat_font = pygame.font.Font(None, int(100 * DEVIDED_WIDTH))
+    skip_font = pygame.font.Font(None, int(50 * DEVIDED_WIDTH))
+    defeat_color = pygame.Color('white')
+    hsv = defeat_color.hsva
+    defeat_color.hsva = (hsv[0], hsv[1], 4, hsv[3])
+
+    skip_color = pygame.Color('white')
+    hsv = skip_color.hsva
+    skip_color.hsva = (hsv[0], hsv[1], 4, hsv[3])
+
+    pygame.display.flip()
+
+    while animation:
+        for event in pygame.event.get():
+            if event.type == pygame.KEYDOWN and able_to_skip:
+                animation = event.key != pygame.K_ESCAPE and event.key != pygame.K_SPACE
+            if event.type == brightness:
+                if able_to_skip:
+                    hsv = skip_color.hsva
+                    if hsv[2] > 99:
+                        direction *= -1
+                    elif hsv[2] < 1:
+                        direction *= -1
+                    skip_color.hsva = (hsv[0], hsv[1], hsv[2] + direction, hsv[3])
+                else:
+                    hsv = defeat_color.hsva
+                    if hsv[2] > 99:
+                        able_to_skip = True
+                    else:
+                        defeat_color.hsva = (hsv[0], hsv[1], hsv[2] + 1, hsv[3])
+
+        string_rendered = defeat_font.render('Поражение', True, defeat_color)
+        intro_rect = string_rendered.get_rect(center=(WIDTH / 2,
+                                                      HEIGHT / 2 - int(40 * DEVIDED_HEIGHT)))
+        SCREEN.blit(string_rendered, intro_rect)
+
+        string_rendered = skip_font.render('Нажмите ESC', False, skip_color)
+        intro_rect = string_rendered.get_rect(center=(WIDTH / 2,
+                                                      HEIGHT / 2 + int(150 * DEVIDED_HEIGHT)))
+        SCREEN.blit(string_rendered, intro_rect)
+
+        pygame.display.flip()
+
+    pygame.time.set_timer(brightness, 0)
 
 
 EXIT_BUTTON = MainScreenButton('Выход', None,
