@@ -9,6 +9,7 @@ explosion_sound = pygame.mixer.Sound('data/sounds/explosion.mp3')
 shot_sound = pygame.mixer.Sound('data/sounds/shot.mp3')
 victory = pygame.mixer.Sound('data/sounds/victory.mp3')
 defeat = pygame.mixer.Sound('data/sounds/defeat.mp3')
+new_level = pygame.mixer.Sound('data/sounds/new_level.mp3')
 
 COLORS = {'intro_part_1': pygame.Color((74, 212, 237)),
           'intro_part_2': pygame.Color((251, 232, 32)),
@@ -433,7 +434,7 @@ def new_game():
                 moved, direction, bullet_flies, able_to_shoot = 0, random.choice((1, -1)), False, True
                 PLAYER_BULLET.empty()
                 RIVAL_BULLETS.empty()
-                new_level_animation()
+                new_level_animation(score)
             else:
                 PLAYER_BULLET.empty()
                 RIVAL_BULLETS.empty()
@@ -592,8 +593,54 @@ def new_game():
     HEALTH_POINTS.empty()
 
 
-def new_level_animation():
-    pass
+def new_level_animation(score):
+    new_level.play()
+    background = pygame.transform.smoothscale(pygame.image.load('data/backgrounds/background_start_game.png'),
+                                              (WIDTH, HEIGHT))
+    animation = True
+    brightness = pygame.USEREVENT + 7
+    pygame.time.set_timer(brightness, 10)
+
+    stop_anim = pygame.USEREVENT + 8
+
+    color = pygame.Color('white')
+    hsv = color.hsva
+    color.hsva = (hsv[0], hsv[1], 0, hsv[3])
+
+    font = pygame.font.Font(None, int(100 * DEVIDED_WIDTH))
+    words = font.render('Поздравляем, новый уровень!', False, color)
+    rectangle = words.get_rect(center=(WIDTH // 2, HEIGHT // 2))
+
+    scoreboard = pygame.surface.Surface((int(400 * DEVIDED_WIDTH), int(200 * DEVIDED_HEIGHT)), pygame.SRCALPHA)
+    score_rendered = font.render(f'Счёт: {score}', True, color)
+    rect = score_rendered.get_rect(center=(int(200 * DEVIDED_WIDTH), int(100 * DEVIDED_HEIGHT)))
+    scoreboard.blit(score_rendered, rect)
+    rect = scoreboard.get_rect(center=(WIDTH // 2, int(HEIGHT / 2 - 300 * DEVIDED_HEIGHT)))
+
+    while animation:
+        for event in pygame.event.get():
+            if event.type == brightness:
+                hsv = color.hsva
+                if hsv[2] > 99:
+                    pygame.time.set_timer(stop_anim, 4000, 1)
+                else:
+                    color.hsva = (hsv[0], hsv[1], hsv[2] + 1, hsv[3])
+            if event.type == stop_anim:
+                animation = False
+        words = font.render('Поздравляем, новый уровень!', False, color)
+        rectangle = words.get_rect(center=(WIDTH // 2, HEIGHT // 2))
+
+        scoreboard.fill(pygame.SRCALPHA)
+        score_rendered = font.render(f'Счёт: {score}', True, color)
+        rect = score_rendered.get_rect(center=(int(200 * DEVIDED_WIDTH), int(100 * DEVIDED_HEIGHT)))
+        scoreboard.blit(score_rendered, rect)
+        rect = scoreboard.get_rect(center=(WIDTH // 2, int(HEIGHT / 2 - 300 * DEVIDED_HEIGHT)))
+
+        SCREEN.blit(words, rectangle)
+        SCREEN.blit(scoreboard, rect)
+        pygame.display.flip()
+        CLOCK.tick(FPS)
+    pygame.time.set_timer(brightness, 0)
 
 
 def victory_animation(score):
