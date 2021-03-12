@@ -428,6 +428,7 @@ def new_game():
         scoreboard.blit(word_score, (0, 0))
         scoreboard.blit(current_score, (int(100 * DEVIDED_WIDTH), 0))
         if len(RIVAL_SPACESHIPS) == 0:
+            pygame.time.set_timer(attack, 0)
             if level < 4:
                 level += 1
                 load_level(level)
@@ -435,6 +436,7 @@ def new_game():
                 PLAYER_BULLET.empty()
                 RIVAL_BULLETS.empty()
                 new_level_animation(score)
+                pygame.time.set_timer(attack, 15000, 1)
             else:
                 PLAYER_BULLET.empty()
                 RIVAL_BULLETS.empty()
