@@ -305,15 +305,23 @@ def main_screen():
             if event.type == pygame.MOUSEBUTTONDOWN and event.button == 1:
                 if EXIT_BUTTON.selected:
                     quit()
-                elif START_GAME_BUTTON.selected:
-                    new_game()
+                elif HARD.selected:
+                    new_game(101)
+                elif MEDIUM.selected:
+                    new_game(71)
+                elif EASY.selected:
+                    new_game(41)
             if event.type == pygame.MOUSEMOTION:
                 CURSOR.update(pygame.mouse.get_pos())
                 EXIT_BUTTON.check_selected(event.pos[0], event.pos[1])
-                START_GAME_BUTTON.check_selected(event.pos[0], event.pos[1])
+                HARD.check_selected(event.pos[0], event.pos[1])
+                MEDIUM.check_selected(event.pos[0], event.pos[1])
+                EASY.check_selected(event.pos[0], event.pos[1])
 
         EXIT_BUTTON.update(SCREEN)
-        START_GAME_BUTTON.update(SCREEN)
+        HARD.update(SCREEN)
+        MEDIUM.update(SCREEN)
+        EASY.update(SCREEN)
         CURSOR_SPRITE.draw(SCREEN)
         pygame.display.flip()
         CLOCK.tick(FPS)
@@ -387,7 +395,7 @@ def pause(background, scoreboard, attack, death_cooldown):
         pygame.time.set_timer(death_cooldown, death_cooldown_timer_time, 1)
 
 
-def new_game():
+def new_game(difficulty):
     global game, score, health
     health_icon = pygame.transform.smoothscale(pygame.image.load('data/sprites/spaceships/player_spaceship.png'),
                                                (int(35 * DEVIDED_WIDTH), int(30 * DEVIDED_WIDTH)))
@@ -442,13 +450,14 @@ def new_game():
                 RIVAL_BULLETS.empty()
                 victory_animation(score)
                 break
-        spaceships = sorted(RIVAL_SPACESHIPS, key=lambda x: x.rect.x)
-        left, right = spaceships[0].rect.x, spaceships[-1].rect.x
-        left_border, right_border = left - moved, int(1920 * DEVIDED_WIDTH) - (right + int(60 * DEVIDED_WIDTH) - moved)
-        moved += direction
-        if moved == -left_border or moved == right_border:
-            direction *= -1
-            moved += 2 * direction
+        spaceships = sorted(filter(lambda x: x.mode != 'attacking', RIVAL_SPACESHIPS), key=lambda x: x.rect.x)
+        if len(spaceships) > 0:
+            left, right = spaceships[0].rect.x, spaceships[-1].rect.x
+            left_border, right_border = left - moved, int(1920 * DEVIDED_WIDTH) - (right + int(60 * DEVIDED_WIDTH) - moved)
+            moved += direction
+            if moved == -left_border or moved == right_border:
+                direction *= -1
+                moved += 2 * direction
         for event in pygame.event.get():
             if event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
@@ -499,7 +508,7 @@ def new_game():
                        player_spaceship.rect.x + int(40 * DEVIDED_WIDTH), player_spaceship.rect.y)
                 shot_sound.play()
                 bullet_flies, able_to_shoot = True, False
-                evasion = True if random.randrange(100) < 40 else False
+                evasion = random.randrange(100) < difficulty
 
         if someone_is_attacking:
             someone_is_getting_back_local = False
@@ -593,6 +602,8 @@ def new_game():
     PLAYER_SPACESHIP.empty()
     EXPLOSIONS.empty()
     HEALTH_POINTS.empty()
+    pygame.time.set_timer(death_cooldown, 0)
+    pygame.time.set_timer(attack, 0)
 
 
 def new_level_animation(score):
@@ -794,9 +805,17 @@ EXIT_BUTTON = MainScreenButton('Выход', None,
                                int(150 * DEVIDED_WIDTH),
                                int(800 * DEVIDED_WIDTH), 'main_screen_button')
 
-START_GAME_BUTTON = MainScreenButton('Играть', None, int(55 * DEVIDED_WIDTH),
+HARD = MainScreenButton('Сложный', None, int(55 * DEVIDED_WIDTH),
                                      int(150 * DEVIDED_WIDTH),
                                      int(500 * DEVIDED_WIDTH), 'main_screen_button')
+
+MEDIUM = MainScreenButton('Средний', None, int(55 * DEVIDED_WIDTH),
+                                     int(150 * DEVIDED_WIDTH),
+                                     int(600 * DEVIDED_WIDTH), 'main_screen_button')
+
+EASY = MainScreenButton('Лёгкий', None, int(55 * DEVIDED_WIDTH),
+                                     int(150 * DEVIDED_WIDTH),
+                                     int(700 * DEVIDED_WIDTH), 'main_screen_button')
 
 CURSOR = Cursor(CURSOR_SPRITE, pygame.mouse.get_pos())
 
