@@ -1,6 +1,7 @@
 import pygame
 import random
 from cursor import Cursor
+from bullet import Bullet
 
 pygame.init()
 pygame.mouse.set_visible(False)
@@ -79,30 +80,6 @@ class MainScreenButton:
                          and y in range(self.y - int(35 * DEVIDED_WIDTH), self.y + int(50 * DEVIDED_WIDTH)))
 
 
-class Bullet(pygame.sprite.Sprite):
-    image = pygame.transform.smoothscale(pygame.image.load('data/sprites/bullet.png'),
-                                        (int(6 * DEVIDED_WIDTH), int(20 * DEVIDED_WIDTH)))
-    image.convert_alpha()
-
-    def __init__(self, group, owner, x_pos, y_pos):
-        super().__init__(group)
-        if owner == 'rival_spaceship':
-            self.direction = 12
-            self.image = pygame.transform.flip(Bullet.image, False, True)
-        else:
-            self.direction = -12
-            self.image = Bullet.image
-        self.rect = self.image.get_rect()
-        self.rect.x, self.rect.y = x_pos, y_pos
-        self.mask = pygame.mask.from_surface(self.image)
-
-    def update(self):
-        if self.rect.y < 0 or self.rect.y > HEIGHT:
-            self.kill()
-        else:
-            self.rect.y += self.direction
-
-
 class PlayerSpaceship(pygame.sprite.Sprite):
     image = pygame.transform.smoothscale(pygame.image.load('data/sprites/spaceships/player_spaceship.png'),
                                          (int(80 * DEVIDED_WIDTH), int(80 * DEVIDED_WIDTH)))
@@ -175,7 +152,8 @@ class RivalSpaceship(pygame.sprite.Sprite):
                 self.mode = 'just_moving'
         elif self.mode == 'attacking':
             if self.rect.y % 300 in range(3, 5):
-                Bullet(RIVAL_BULLETS, 'rival_spaceship', self.rect.x + int(30 * DEVIDED_WIDTH), self.rect.y)
+                Bullet(RIVAL_BULLETS, 'rival_spaceship', self.rect.x + int(30 * DEVIDED_WIDTH), self.rect.y,
+                       DEVIDED_WIDTH, DEVIDED_HEIGHT, HEIGHT)
                 shot_sound.play()
             if self.rect.y % HEIGHT not in range(int(80 * DEVIDED_HEIGHT) - 2, int(80 * DEVIDED_HEIGHT)):
                 self.rect.y = (self.rect.y + 2) % HEIGHT
@@ -489,7 +467,8 @@ def new_game(difficulty):
         if keys[pygame.K_UP] and player_spaceship is not None:
             if able_to_shoot:
                 bullet = Bullet(PLAYER_BULLET, 'player_spaceship',
-                       player_spaceship.rect.x + int(40 * DEVIDED_WIDTH), player_spaceship.rect.y)
+                       player_spaceship.rect.x + int(40 * DEVIDED_WIDTH), player_spaceship.rect.y, DEVIDED_WIDTH,
+                                DEVIDED_HEIGHT, HEIGHT)
                 shot_sound.play()
                 bullet_flies, able_to_shoot = True, False
                 evasion = random.randrange(100) < difficulty
