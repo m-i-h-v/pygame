@@ -1,5 +1,6 @@
 import pygame
 import random
+from cursor import Cursor
 
 pygame.init()
 pygame.mouse.set_visible(False)
@@ -41,23 +42,6 @@ RESULUTION_FIT_NUMBERS = {'start_animation_font': int(70 * devided_width),
                           'main_screen_x': int(150 * devided_width),
                           'main_screen_font': int(55 * devided_width),
                           'main_screen_button': int(250 * devided_width)}
-
-
-class Cursor(pygame.sprite.Sprite):
-    cursor = pygame.image.load('data/sprites/cursor.png')
-    cursor = cursor.convert_alpha()
-    cursor = pygame.transform.smoothscale(cursor, (int(50 * DEVIDED_WIDTH), int(50 * DEVIDED_WIDTH)))
-
-    def __init__(self, group, current_pos):
-        super().__init__(group)
-        self.image = Cursor.cursor
-        self.rect = self.image.get_rect()
-        self.rect.x = current_pos[0] - int(25 * DEVIDED_WIDTH)
-        self.rect.y = current_pos[1]
-
-    def update(self, pos):
-        self.rect.x = pos[0] - int(25 * DEVIDED_WIDTH)
-        self.rect.y = pos[1]
 
 
 class MainScreenButton:
@@ -817,7 +801,7 @@ EASY = MainScreenButton('Лёгкий', None, int(55 * DEVIDED_WIDTH),
                                      int(150 * DEVIDED_WIDTH),
                                      int(700 * DEVIDED_WIDTH), 'main_screen_button')
 
-CURSOR = Cursor(CURSOR_SPRITE, pygame.mouse.get_pos())
+CURSOR = Cursor(CURSOR_SPRITE, pygame.mouse.get_pos(), DEVIDED_WIDTH, DEVIDED_HEIGHT)
 
 if __name__ == '__main__':
     start_animation()
