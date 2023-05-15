@@ -2,6 +2,7 @@ import pygame
 import random
 from cursor import Cursor
 from bullet import Bullet
+from player_spaceship import PlayerSpaceship
 
 pygame.init()
 pygame.mouse.set_visible(False)
@@ -80,18 +81,7 @@ class MainScreenButton:
                          and y in range(self.y - int(35 * DEVIDED_WIDTH), self.y + int(50 * DEVIDED_WIDTH)))
 
 
-class PlayerSpaceship(pygame.sprite.Sprite):
-    image = pygame.transform.smoothscale(pygame.image.load('data/sprites/spaceships/player_spaceship.png'),
-                                         (int(80 * DEVIDED_WIDTH), int(80 * DEVIDED_WIDTH)))
-    image = image.convert_alpha()
 
-    def __init__(self, group):
-        super().__init__(group)
-        self.rect = self.image.get_rect(center=(WIDTH / 2, HEIGHT / 2 + 300))
-
-    def update(self, direction):
-        if self.rect.x + direction in range(WIDTH - int(80 * DEVIDED_WIDTH)):
-            self.rect.x += direction
 
 
 class RivalSpaceship(pygame.sprite.Sprite):
@@ -390,7 +380,7 @@ def new_game(difficulty):
     word_score = font.render('Счёт:', True, pygame.Color((255, 255, 255)))
     background = pygame.transform.smoothscale(pygame.image.load('data/backgrounds/background_start_game.png'), (WIDTH, HEIGHT))
     load_level(level)
-    player_spaceship = PlayerSpaceship(PLAYER_SPACESHIP)
+    player_spaceship = PlayerSpaceship(PLAYER_SPACESHIP, DEVIDED_WIDTH, DEVIDED_HEIGHT, WIDTH, HEIGHT)
 
     while game:
         current_score = font.render(str(score), True, (255, 255, 255))
@@ -425,7 +415,7 @@ def new_game(difficulty):
                 if event.key == pygame.K_ESCAPE:
                     pause(background, scoreboard, attack, death_cooldown)
             if event.type == death_cooldown:
-                player_spaceship = PlayerSpaceship(PLAYER_SPACESHIP)
+                player_spaceship = PlayerSpaceship(PLAYER_SPACESHIP, DEVIDED_WIDTH, DEVIDED_HEIGHT, WIDTH, HEIGHT)
             if event.type == attack:
                 attacking_candidates = list(filter(lambda x: abs(x.rect.x - player_spaceship.rect.x) < 70,
                                                    RIVAL_SPACESHIPS))
